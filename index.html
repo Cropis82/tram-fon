@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Vault Translator</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- STILI IDENTICI ALLA VERSIONE PRECEDENTE --- */
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            margin: 0; padding: 0;
+            height: 100dvh; width: 100vw;
+            overflow: hidden; background-color: #000;
+            display: flex; flex-direction: column;
+        }
+        .request-section {
+            flex: 1; background-color: #050505;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            padding: 20px; z-index: 1;
+        }
+        .lang-select {
+            background-color: #1a1a1a; color: #fff;
+            border: 1px solid #333; border-radius: 8px;
+            padding: 12px; font-family: 'Orbitron', sans-serif;
+            font-size: 1rem; text-align: center; width: 100%;
+            max-width: 300px; outline: none; margin-bottom: 2rem;
+            text-transform: uppercase; -webkit-appearance: none;
+        }
+        .input-wrapper {
+            width: 100%; display: flex; flex-direction: column;
+            align-items: center; gap: 25px;
+        }
+        .main-input {
+            width: 100%; background: transparent; border: none;
+            border-bottom: 2px solid #333; color: #fff;
+            font-family: 'Share Tech Mono', monospace; font-size: 2rem;
+            text-align: center; padding: 10px; outline: none;
+            text-transform: uppercase; transition: all 0.3s ease;
+        }
+        .main-input:focus {
+            border-bottom-color: #ffff00;
+            text-shadow: 0 0 15px rgba(255, 255, 0, 0.5);
+        }
+        .submit-btn {
+            background: #111; border: 1px solid #444; color: #fff;
+            font-size: 1.5rem; width: 65px; height: 65px;
+            border-radius: 50%; cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .submit-btn:active { background-color: #ffff00; color: #000; }
+        
+        /* OUTPUT */
+        .response-section {
+            flex: 1; background-color: #3a0000;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill-rule='evenodd'%3E%3Cg id='hexagons' fill='%23500000' fill-opacity='1' fill-rule='nonzero'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            display: flex; flex-direction: column; z-index: 10;
+            padding: 20px; overflow-y: auto;
+            border-top: 3px solid #ffff00;
+            box-shadow: 0 -5px 30px rgba(255, 255, 0, 0.5);
+        }
+        .output-col {
+            width: 100%; padding: 10px 0; display: flex;
+            flex-direction: column; color: #fff; text-align: center;
+        }
+        .trans-col {
+            border-bottom: 1px solid rgba(255, 255, 0, 0.2);
+            margin-bottom: 15px; padding-bottom: 15px;
+        }
+        .translation-text {
+            font-family: 'Orbitron', sans-serif; font-size: 1.8rem;
+            font-weight: 700; text-shadow: 2px 2px 0 #000;
+            line-height: 1.2; margin-top: 5px;
+        }
+        .definition-text {
+            font-size: 0.95rem; line-height: 1.5; color: #ffcccc;
+        }
+        .label {
+            font-family: 'Orbitron', sans-serif; font-size: 0.7rem;
+            text-transform: uppercase; letter-spacing: 2px;
+            color: #ffff00; opacity: 0.7;
+        }
+        
+        /* Modal Overlay per la Password */
+        #passwordOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 1000;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+        }
+        .pass-box {
+            background: #111; border: 1px solid #333; padding: 20px;
+            text-align: center; border-radius: 10px; width: 80%;
+        }
+        .pass-input {
+            background: #000; border: 1px solid #444; color: #fff;
+            padding: 10px; font-size: 1.2rem; margin-bottom: 10px;
+            text-align: center; width: 100%;
+        }
+        .pass-btn {
+            background: #ffff00; color: #000; border: none;
+            padding: 10px 20px; font-weight: bold; cursor: pointer;
+            width: 100%; font-family: 'Orbitron';
+        }
+
+        .loading-pulse { animation: pulse 1s infinite alternate; }
+        @keyframes pulse { from { opacity: 0.5; } to { opacity: 1; text-shadow: 0 0 15px #ffff00; } }
+    </style>
+</head>
+<body>
+
+    <div id="passwordOverlay">
+        <div class="pass-box">
+            <h2 style="color:#ffff00; font-family:'Orbitron'">SECURITY CHECK</h2>
+            <p style="color:#888; font-size:0.8rem">ENTER SESSION PASSWORD</p>
+            <input type="password" id="sessionPass" class="pass-input" placeholder="***">
+            <button class="pass-btn" onclick="unlockSystem()">UNLOCK</button>
+            <p id="passError" style="color:red; display:none; margin-top:10px;">ACCESS DENIED</p>
+        </div>
+    </div>
+
+    <div class="request-section">
+        <select id="languageSelect" class="lang-select">
+            <option value="English">English</option>
+            <option value="Italian">Italian</option>
+            <option value="Spanish">Spanish</option>
+            <option value="Swedish">Swedish</option>
+            <option value="French">French</option>
+            <option value="German">German</option>
+            <option value="Polish">Polish</option>
+            <option value="Russian">Russian</option>
+            <option value="Portuguese">Portuguese</option>
+            <option value="Chinese">Chinese</option>
+            <option value="Japanese">Japanese</option>
+        </select>
+
+        <div class="input-wrapper">
+            <input type="text" id="wordInput" class="main-input" placeholder="DATA INPUT" autocomplete="off">
+            <button id="submitBtn" class="submit-btn" onclick="analyzeWord()">&#10148;</button>
+        </div>
+    </div>
+
+    <div class="response-section">
+        <div class="output-col trans-col">
+            <span class="label">Translation</span>
+            <div id="translationOutput" class="translation-text">...</div>
+        </div>
+        <div class="output-col def-col">
+            <span class="label">Definition (EN)</span>
+            <div id="definitionOutput" class="definition-text">System Locked.</div>
+        </div>
+    </div>
+
+    <script>
+        const ENCRYPTED_KEY = "U2FsdGVkX19QHoZoG1kdhr4jn+8dy6S6ezfMApKCy8/FFNaI43Jr7X6a2ne/h8f/BZ6G2sMmm7PB1OkcCKv9JQ==";
+        let decryptedKey = "";
+
+        // Tenta di decifrare la chiave quando premi UNLOCK
+        function unlockSystem() {
+            const pass = document.getElementById('sessionPass').value;
+            try {
+                // Decripta
+                const bytes = CryptoJS.AES.decrypt(ENCRYPTED_KEY, pass);
+                const originalText = bytes.toString(CryptoJS.enc.Utf8);
+
+                if (originalText.startsWith("AIza")) { // Le chiavi Google iniziano quasi sempre con AIza
+                    decryptedKey = originalText;
+                    document.getElementById('passwordOverlay').style.display = 'none'; // Rimuove il blocco
+                    document.getElementById('definitionOutput').innerText = "System Ready. Encryption verified.";
+                } else {
+                    throw new Error("Wrong pass");
+                }
+            } catch (e) {
+                document.getElementById('passError').style.display = 'block';
+                document.getElementById('sessionPass').value = "";
+            }
+        }
+
+        // Supporto Enter sulla password
+        document.getElementById("sessionPass").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") unlockSystem();
+        });
+
+        async function analyzeWord() {
+            if (!decryptedKey) return; // Sicurezza extra
+
+            const word = document.getElementById('wordInput').value;
+            const targetLang = document.getElementById('languageSelect').value;
+            const btn = document.getElementById('submitBtn');
+            const translationOut = document.getElementById('translationOutput');
+            const definitionOut = document.getElementById('definitionOutput');
+
+            if (!word) return;
+
+            btn.disabled = true;
+            translationOut.innerText = "PROCESSING";
+            translationOut.classList.add('loading-pulse');
+            definitionOut.innerText = "Querying Neural Network...";
+
+            const promptText = `
+                Act as an expert linguist.
+                Analyze the word or phrase: "${word}".
+                1. Translate it into ${targetLang}.
+                2. Provide the dictionary definition of the ORIGINAL word ("${word}") in English.
+                
+                Return the response EXCLUSIVELY in JSON format with these two keys:
+                {
+                    "translation": "the translation here",
+                    "definition": "the definition in English here"
+                }
+            `;
+
+            try {
+                const modelName = "gemini-3-flash-preview"; 
+                // Usiamo la chiave decifrata
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${decryptedKey}`;
+
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+                });
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.error.message);
+
+                let rawText = data.candidates[0].content.parts[0].text;
+                rawText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
+                const result = JSON.parse(rawText);
+
+                translationOut.innerText = result.translation;
+                definitionOut.innerText = result.definition;
+
+            } catch (error) {
+                console.error("Error:", error);
+                translationOut.innerText = "ERROR";
+                definitionOut.innerText = "Errore: " + error.message;
+            } finally {
+                btn.disabled = false;
+                translationOut.classList.remove('loading-pulse');
+            }
+        }
+
+        document.getElementById("wordInput").addEventListener("keypress", function(event) {
+            if (event.key === "Enter") { event.preventDefault(); analyzeWord(); }
+        });
+    </script>
+</body>
+</html>
